@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 // GET DETAIL PELAYANAN BERDASARKAN ID
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const pelayananId = Number(params.id);
 
@@ -16,8 +16,8 @@ export async function GET(request: Request, { params }: { params: { id: string }
     const data = await prisma.pelayanan.findUnique({
       where: { id: pelayananId },
       include: {
-        peserta: true, // kalau ada relasi peserta
-        posyandu: true, // kalau memiliki relasi pos
+        peserta: true,  
+        posyandu: true, 
       },
     });
 
