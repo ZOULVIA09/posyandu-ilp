@@ -1,0 +1,39 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+
+// GET DETAIL PELAYANAN BERDASARKAN ID
+export async function GET(request: Request, { params }: { params: { id: string } }) {
+  try {
+    const pelayananId = Number(params.id);
+
+    if (isNaN(pelayananId)) {
+      return NextResponse.json(
+        { error: "ID pelayanan tidak valid" },
+        { status: 400 }
+      );
+    }
+
+    const data = await prisma.pelayanan.findUnique({
+      where: { id: pelayananId },
+      include: {
+        peserta: true, // kalau ada relasi peserta
+        posyandu: true, // kalau memiliki relasi pos
+      },
+    });
+
+    if (!data) {
+      return NextResponse.json(
+        { error: "Data pelayanan tidak ditemukan" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(data, { status: 200 });
+  } catch (error) {
+    console.error("Error mengambil detail pelayanan:", error);
+    return NextResponse.json(
+      { error: "Terjadi kesalahan server saat mengambil detail pelayanan" },
+      { status: 500 }
+    );
+  }
+}

@@ -1,0 +1,265 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       Int    @id @default(autoincrement())
+  nama     String
+  email    String @unique
+  password String
+  role     Role
+
+  posyandus Posyandu[] @relation("UserPosyandu")
+
+  currentPosId Int?      @db.Integer
+  currentPos   Posyandu? @relation("CurrentPosyandu", fields: [currentPosId], references: [id])
+  createdPesertas     Peserta[]     @relation("PesertaCreatedBy")
+  createdPemeriksaans Pemeriksaan[] @relation("PemeriksaanCreatedBy")
+  createdPelayanans   Pelayanan[]   @relation("PelayananCreatedBy")
+  createdAt DateTime @default(now())
+}
+
+model Posyandu {
+  id     Int    @id @default(autoincrement())
+  nama   String
+  alamat String
+
+  users        User[] @relation("UserPosyandu")
+  currentUsers User[] @relation("CurrentPosyandu")
+
+  pesertas     Peserta[]
+  pemeriksaans Pemeriksaan[]
+}
+
+model Peserta {
+  id        Int      @id @default(autoincrement())
+  nama      String
+  kategori  String
+  pos       String?
+  bulan     String?
+  hadir     Boolean?
+  createdAt DateTime @default(now())
+
+  // === UMUM ===
+  nik       String?
+  alamat    String?
+  tglLahir  String?
+  noHp      String?
+  dusun     String?
+  desa      String?
+  kecamatan String?
+
+  // === BALITA ===
+  ortu         String?
+  panjangLahir String?
+  beratLahir   String?
+
+  // === IBU HAMIL ===
+  // ortu      → nama suami (sudah ada di atas)
+  // noHp      → sudah ada
+  // dusun,desa,kecamatan → sudah ada
+  kehamilan      String? // jarak kehamilan
+  berat          String? // berat badan
+  tinggiBadan    String?
+  tglPersalinan  String?
+  anakKe         String?
+  caraPersalinan String?
+
+  // === LANSIA ===
+  pekerjaan       String?
+  statusNikah     String?
+  riwayatKeluarga String[]
+  riwayatDiri     String[]
+  merokok         String?
+  gula            String?
+  garam           String?
+  lemak           String?
+  tekanan         String?
+
+  // === REMAJA ===
+  jenisKelamin          String?
+  ortuRemaja            String?
+  noHpRemaja            String?
+  dusunRemaja           String?
+  desaRemaja            String?
+  kecamatanRemaja       String?
+  riwayatKeluargaRemaja String[]
+  riwayatDiriRemaja     String[]
+
+  // === RELASI ===
+  posyandu     Posyandu?     @relation(fields: [posId], references: [id])
+  posId        Int?
+  createdById Int?
+  createdBy   User? @relation("PesertaCreatedBy", fields: [createdById], references: [id])
+  @@index([createdById])
+  @@index([posId, createdById])
+  pemeriksaans Pemeriksaan[]
+  pelayanans   Pelayanan[]
+}
+
+model Pemeriksaan {
+  id Int @id @default(autoincrement())
+
+  pesertaId Int
+  peserta   Peserta @relation(fields: [pesertaId], references: [id])
+
+  posId    Int
+  posyandu Posyandu @relation(fields: [posId], references: [id])
+  createdById Int?
+  createdBy   User? @relation("PemeriksaanCreatedBy", fields: [createdById], references: [id])
+  @@index([createdById])
+  @@index([posId, createdById])
+  @@index([pesertaId])
+  tanggal  String?
+  kategori String
+
+  // BALITA
+  bb            String?
+  tb            String?
+  lingkarKepala String?
+  lila          String?
+  statusBbU     String?
+  statusTbU     String?
+  statusBbTb    String?
+  statusLingkar String?
+
+  // LANSIA
+  lansiaBb           String?
+  lansiaTb           String?
+  lingkarPerut       String?
+  lilaLansia         String?
+  tekananDarah       String?
+  imt                String?
+  statusImt          String?
+  statusTekananDarah String?
+
+  // IBU HAMIL
+  usiaKehamilan   String?
+  bbBumil         String?
+  lilaBumil       String?
+  tdBumil         String?
+  imtBumil        String?
+  statusImtBumil  String?
+  statusLilaBumil String?
+  statusTdBumil   String?
+
+  // NIFAS
+  waktuKunjungan String?
+  bbNifas        String?
+  tdNifas        String?
+
+  // REMAJA
+  remajaBb           String?
+  remajaTb           String?
+  lingkarPerutRemaja String?
+  tdRemaja           String?
+  imtRemaja          String?
+  statusImtRemaja    String?
+  statusTdRemaja     String?
+
+  createdAt DateTime @default(now())
+
+  pelayanans Pelayanan[]
+}
+
+model Pelayanan {
+  id        Int     @id @default(autoincrement())
+  tanggal   String
+  kategori  String
+  hasilAi   String?
+  ringkasan String?
+  validasiBidan String?
+
+  // Relasi
+  pesertaId Int?
+  peserta   Peserta? @relation(fields: [pesertaId], references: [id])
+
+  pemeriksaanId Int?
+  pemeriksaan   Pemeriksaan? @relation(fields: [pemeriksaanId], references: [id])
+
+  // ===== BALITA =====
+  asiEksklusif Boolean?
+  mpasi        Boolean?
+  batuk        Boolean?
+  demam        Boolean?
+  bbTidakNaik  Boolean?
+  kontakTBC    Boolean?
+  imunisasi    Boolean?
+  vitaminA     Boolean?
+  obatCacing   Boolean?
+  patuhMT      Boolean?
+
+  // ===== IBU HAMIL =====
+  ttd             Boolean?
+  konsumsiTtd     Boolean?
+  mtBumil         Boolean?
+  porsiMt         String?
+  rutinMt         Boolean?
+  penyuluhanTopik String?
+  ikutKelasIbu    Boolean?
+
+  // ===== IBU NIFAS =====
+  waktuDatang          String?
+  batukNifas           Boolean?
+  demamNifas           Boolean?
+  bbTurunNifas         Boolean?
+  kontakTBCNifas       Boolean?
+  jumlahKapsul         String?
+  konsumsiVitaminA     Boolean?
+  menyusui             Boolean?
+  kbPasca              Boolean?
+  topikPenyuluhanNifas String?
+
+  // ===== REMAJA =====
+  batukRemaja           Boolean?
+  demamRemaja           Boolean?
+  bbTurunRemaja         Boolean?
+  kontakTBCRemaja       Boolean?
+  penyuluhanRemaja      Boolean?
+  topikPenyuluhanRemaja String?
+  mataKanan             String?
+  mataKiri              String?
+  telingaKanan          String?
+  telingaKiri           String?
+  kadarHb               String?
+
+  // ===== LANSIA =====
+  batukLansia           Boolean?
+  demamLansia           Boolean?
+  bbTurunLansia         Boolean?
+  kontakTBCLansia       Boolean?
+  tekananDarah          String?
+  gulaDarah             String?
+  kolesterol            String?
+  penyuluhanLansia      Boolean?
+  topikPenyuluhanLansia String?
+  orientasi             Boolean?
+  ingatKata             Boolean?
+  tesBerdiri            Boolean?
+  bbTurun3kg            Boolean?
+  nafsuMakan            Boolean?
+  lila                  Boolean?
+  masalahMata           Boolean?
+  tesMelihat            Boolean?
+  tesBerbisik           Boolean?
+  sedih                 Boolean?
+  minat                 Boolean?
+  imunisasiCovid        Boolean?
+  topikPenyuluhanSkilas String?
+  createdById Int?
+  createdBy   User? @relation("PelayananCreatedBy", fields: [createdById], references: [id])
+  @@index([createdById])
+  @@index([pesertaId])
+  @@index([pemeriksaanId])
+  createdAt DateTime @default(now())
+}
+
+enum Role {
+  BIDAN
+  KADER
+}
