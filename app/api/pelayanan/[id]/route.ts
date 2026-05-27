@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 // GET DETAIL PELAYANAN BERDASARKAN ID
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const pelayananId = Number(params.id);
+    const { id } = await params;
+    const pelayananId = Number(id);
 
     if (isNaN(pelayananId)) {
       return NextResponse.json(
