@@ -8,26 +8,59 @@ import { getCurrentUser } from "@/lib/getCurrentUser";
 export async function GET(req: Request) {
   try {
     const currentUser = await getCurrentUser();
+
     if (!currentUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { searchParams } = new URL(req.url);
-    const posIdParam = searchParams.get("posId");
 
-    // Coba tanpa where dulu — ambil SEMUA data
+    const posIdParam = searchParams.get("posId");
+    const pesertaIdParam = searchParams.get("pesertaId");
+
+    let where: any = {};
+
+    // filter role kader
+    if (currentUser.role === "KADER") {
+      where.createdById = currentUser.id;
+    }
+
+    // filter bidan berdasarkan pos
+    if (currentUser.role === "BIDAN" && posIdParam) {
+      where.peserta = {
+        posId: Number(posIdParam),
+      };
+    }
+
+    // FILTER PESERTA DETAIL
+    if (pesertaIdParam) {
+      where.pesertaId = Number(pesertaIdParam);
+    }
+
     const data = await prisma.pelayanan.findMany({
-      include: { peserta: true, pemeriksaan: true },
-      orderBy: { createdAt: "desc" },
+      where,
+      include: {
+        peserta: {
+          include: {
+            posyandu: true,
+          },
+        },
+        pemeriksaan: true,
+      },
+      orderBy: {
+        tanggal: "desc",
+      },
     });
 
-    console.log("Total pelayanan di DB:", data.length);
-    console.log("Sample:", JSON.stringify(data[0], null, 2));
-
     return NextResponse.json(data);
+
   } catch (error) {
     console.error("ERROR GET pelayanan:", error);
-    return NextResponse.json({ error: "Gagal mengambil data" }, { status: 500 });
+
+    return NextResponse.json(
+      { error: "Gagal mengambil data" },
+      { status: 500 }
+    );
   }
 }
 

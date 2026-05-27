@@ -276,6 +276,7 @@ const handleSimpan = async () => {
   try {
     const payload = {
   ...form,
+  pesertaId: form.pesertaId,
   hasilAi: hasilAI,
   ringkasan: form.ringkasanPemeriksaan,
   validasiBidan: validasiBidan,
@@ -316,12 +317,39 @@ telingaKiri: form.telingaKiri,
   }
 };
   const handleEdit = (item: any) => {
-    setForm(item);
-    setEditId(item.id);
-    setHasilAI(item.hasilAI || "");
-    setValidasiBidan(item.validasiBidan || "");
-    setSudahDivalidasi(!!item.validasiBidan);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  setForm({
+    ...FORM_DEFAULT,
+    ...item,
+
+    nama: item.nama ?? item.peserta?.nama ?? "",
+    nik: item.nik ?? item.peserta?.nik ?? "",
+    alamat: item.alamat ?? item.peserta?.alamat ?? "",
+    kategori: item.kategori ?? "",
+    tanggal: item.tanggal ?? "",
+    ringkasanPemeriksaan: item.ringkasan ?? "",
+
+    tekananDarah: item.tekananDarah ?? "",
+    gulaDarah: item.gulaDarah ?? "",
+    kolesterol: item.kolesterol ?? "",
+
+    mataKanan: item.mataKanan ?? "",
+    mataKiri: item.mataKiri ?? "",
+    telingaKanan: item.telingaKanan ?? "",
+    telingaKiri: item.telingaKiri ?? "",
+
+    topikPenyuluhan: item.topikPenyuluhan ?? "",
+    topikPenyuluhanNifas: item.topikPenyuluhanNifas ?? "",
+    topikPenyuluhanRemaja: item.topikPenyuluhanRemaja ?? "",
+    topikPenyuluhanLansia: item.topikPenyuluhanLansia ?? "",
+    topikPenyuluhanSkilas: item.topikPenyuluhanSkilas ?? "",
+  });
+
+  setEditId(item.id);
+  setHasilAI(item.hasilAI || "");
+  setValidasiBidan(item.validasiBidan || "");
+  setSudahDivalidasi(!!item.validasiBidan);
+
+  window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
 const handleDetail = (item: Pelayanan) => {
@@ -504,17 +532,17 @@ const handleHapus = async (id: number) => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
             <input
               type="text" name="nama" placeholder="Nama Peserta"
-              value={form.nama} readOnly
+              value={form.nama ?? ""} readOnly
               className="border p-2 rounded-lg bg-gray-50"
             />
             <input
               type="text" name="nik" placeholder="NIK"
-              value={form.nik} readOnly
+              value={form.nik ?? ""} readOnly
               className="border p-2 rounded-lg bg-gray-50"
             />
             <input
               type="text" name="alamat" placeholder="Alamat"
-              value={form.alamat} readOnly
+              value={form.alamat ?? ""} readOnly
               className="border p-2 rounded-lg bg-gray-50"
             />
 

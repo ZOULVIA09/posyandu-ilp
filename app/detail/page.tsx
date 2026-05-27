@@ -279,8 +279,13 @@ useEffect(() => {
             <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-gradient-to-b from-indigo-300 via-violet-200 to-transparent" />
 
             <div className="space-y-6 pl-14">
-              {riwayat.map((rec, idx) => (
-                <div key={`${rec.id}-${idx}`} className="relative">
+              {riwayat.map((rec, idx) => {
+  const pelayanan = riwayatPelayanan.find(
+    (p) => p.pemeriksaanId === rec.id
+  );
+
+  return (
+    <div key={`${rec.id}-${idx}`} className="relative">
                   {/* dot timeline */}
                   <div className={`absolute -left-9 top-3 w-5 h-5 rounded-full border-2 shadow-sm flex items-center justify-center
                     ${idx === 0
@@ -317,21 +322,22 @@ useEffect(() => {
                    <div className="p-4 space-y-4">
                       <DetailCard record={rec} />
 
-                      {riwayatPelayanan[idx]?.hasilAI && (
-                        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
-                          <h3 className="font-semibold text-emerald-700 mb-2">
-                            🤖 Kesimpulan AI
-                          </h3>
+                      {pelayanan?.hasilAi && (
+                      <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
+                        <h3 className="font-semibold text-emerald-700 mb-2">
+                          🤖 Kesimpulan AI
+                        </h3>
 
-                          <p className="text-sm text-emerald-800 leading-relaxed">
-                            {riwayatPelayanan[idx].hasilAI}
-                          </p>
-                        </div>
+                        <p className="text-sm text-emerald-800 leading-relaxed">
+                          {pelayanan.hasilAi}
+                        </p>
+                      </div>
                       )}
                     </div>
                   </div>
                 </div>
-              ))}
+               );
+            })}
             </div>
           </div>
         )}
