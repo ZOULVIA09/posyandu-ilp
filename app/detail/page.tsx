@@ -1,8 +1,10 @@
 "use client";
 
+import { Suspense } from "react";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Sidebar from "../components/sidebar";
+export const dynamic = "force-dynamic";
 
 type PemeriksaanRecord = {
   id: number;
@@ -162,7 +164,7 @@ function Stat({ label, value }: { label: string; value?: string }) {
 // ─────────────────────────────────────
 // Komponen utama halaman detail
 // ─────────────────────────────────────
-export default function DetailPemeriksaanPage() {
+function DetailPemeriksaanPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 const id = Number(searchParams.get("id"));
@@ -197,6 +199,7 @@ useEffect(() => {
 
   if (id) init();
 }, [id]);
+
 
   if (!role) return <p className="p-8 text-slate-500">Memuat...</p>;
 
@@ -350,5 +353,12 @@ useEffect(() => {
         )}
       </main>
     </div>
+  );
+}
+export default function Page() {
+  return (
+    <Suspense fallback={<p className="p-8 text-slate-500">Memuat...</p>}>
+      <DetailPemeriksaanPage />
+    </Suspense>
   );
 }
