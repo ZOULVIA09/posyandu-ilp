@@ -18,12 +18,16 @@ export async function GET(
     }
 
     const data = await prisma.pelayanan.findUnique({
-      where: { id: pelayananId },
-      include: {
-        peserta: true,  
-        posyandu: true, 
+    where: { id: pelayananId },
+    include: {
+      peserta: {
+        include: {
+          posyandu: true, // posyandu ada di Peserta, bukan di Pelayanan
+        },
       },
-    });
+      pemeriksaan: true,
+    },
+  });
 
     if (!data) {
       return NextResponse.json(
