@@ -186,15 +186,15 @@ const handleTambah = () => {
     year: "numeric",
   });
 
-  const newData: Peserta = {
-    nama,
-    kategori,
-    pos:
-      role === "kader"
-        ? localStorage.getItem("posyandu") || ""
-        : pos,
-    bulan,
-    hadir,
+  const newData: Record<string, any> = {
+  nama,
+  kategori,
+  pos:
+    role === "kader"
+      ? localStorage.getItem("posyandu") || ""
+      : pos,
+  bulan,
+  hadir,
   };
 
   // kategori lansia
