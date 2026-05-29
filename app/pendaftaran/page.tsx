@@ -850,14 +850,14 @@ const handleHapus = async (id: number) => {
   </div>
 )}
         {/* TABEL */}
-        <div className="bg-white/20 backdrop-blur p-6 rounded-2xl shadow border border-violet-100">
+        <div className="bg-white/80 backdrop-blur p-6 rounded-2xl shadow border border-violet-100">
           <h2 className="mb-4 font-semibold text-violet-700">
             📊 Data Peserta
           </h2>
 
           <table className="w-full">
             <thead>
-              <tr className="bg-gradient-to-r from-violet-200 to-indigo-800">
+              <tr className="bg-gradient-to-r from-violet-200 to-indigo-200">
                 <th>No</th>
                 <th>Nama</th>
                 <th>Kategori</th>
