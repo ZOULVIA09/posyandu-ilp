@@ -399,7 +399,7 @@ const handleHapus = async (id: number) => {
       <Sidebar role={role} />
         
       {/* MAIN */}
-      <main className="flex-1 p-6">
+      <main className="flex-1 p-6" style={{color: '#1e293b'}}>
 
         <h1 className="text-3xl font-bold mb-6 text-slate-800">
           📋 Pendaftaran Peserta ({role})
@@ -850,7 +850,8 @@ const handleHapus = async (id: number) => {
   </div>
 )}
         {/* TABEL */}
-        <div className="bg-white/80 backdrop-blur p-6 rounded-2xl shadow border border-violet-100">
+        <div className="bg-white/80 backdrop-blur p-6 rounded-2xl shadow border border-violet-100" 
+     style={{backgroundColor: 'rgba(255,255,255,0.95)', color: '#1e293b'}}>
           <h2 className="mb-4 font-semibold text-violet-700">
             📊 Data Peserta
           </h2>
@@ -858,12 +859,12 @@ const handleHapus = async (id: number) => {
           <table className="w-full">
             <thead>
               <tr className="bg-gradient-to-r from-violet-200 to-indigo-200">
-                <th>No</th>
-                <th>Nama</th>
-                <th>Kategori</th>
-                <th>Detail</th>
-                <th>Pos</th>
-                <th>Aksi</th>
+                <th style={{color: '#1e293b', padding: '8px'}}>No</th>
+                <th style={{color: '#1e293b', padding: '8px'}}>Nama</th>
+                <th style={{color: '#1e293b', padding: '8px'}}>Kategori</th>
+                <th style={{color: '#1e293b', padding: '8px'}}>Detail</th>
+                <th style={{color: '#1e293b', padding: '8px'}}>Pos</th>
+                <th style={{color: '#1e293b', padding: '8px'}}>Aksi</th>
               </tr>
             </thead>
 
@@ -871,7 +872,7 @@ const handleHapus = async (id: number) => {
    {data
 
   .map((item, i) => (
-    <tr key={item.id} className="text-center border-b">
+    <tr key={item.id} className="text-center border-b" style={{color: '#1e293b'}}>
       <td>{i + 1}</td>
       <td>{item.nama}</td>
 
@@ -882,7 +883,7 @@ const handleHapus = async (id: number) => {
       </td>
 
       {/* ✅ DETAIL DINAMIS PER KATEGORI */}
-      <td className="text-left p-2 text-sm">
+<td className="text-left p-2 text-sm" style={{color: '#334155'}}>
         
         {/* BALITA */}
         {item.kategori === "balita" && (
