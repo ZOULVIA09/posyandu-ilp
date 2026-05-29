@@ -857,7 +857,7 @@ const handleHapus = async (id: number) => {
 
           <table className="w-full">
             <thead>
-              <tr className="bg-gradient-to-r from-violet-200 to-indigo-200">
+              <tr className="bg-gradient-to-r from-violet-200 to-indigo-800">
                 <th>No</th>
                 <th>Nama</th>
                 <th>Kategori</th>
