@@ -391,12 +391,12 @@ const handlePeriksa = (item: any) => {
               <table className="w-full text-sm text-center">
                 <thead>
                   <tr className="bg-indigo-100">
-                    <th className="py-2">No</th>
-                    <th>Nama</th>
-                    <th>NIK</th>
-                    <th>Alamat</th>
-                    <th>Kategori</th>
-                    <th>Aksi</th>
+                    <th className="py-2" style={{color: '#1e293b'}}>No</th>
+                    <th style={{color: '#1e293b'}}>Nama</th>
+                    <th style={{color: '#1e293b'}}>NIK</th>
+                    <th style={{color: '#1e293b'}}>Alamat</th>
+                    <th style={{color: '#1e293b'}}>Kategori</th>
+                    <th style={{color: '#1e293b'}}>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -719,9 +719,9 @@ const handlePeriksa = (item: any) => {
             <div className="overflow-x-auto">
               <table className="w-full text-sm border-separate border-spacing-y-2">
                 <thead>
-                  <tr className="bg-violet-100 text-slate-700 text-center">
-                    <th className="py-2 rounded-l-lg">No</th>
-                    <th>Nama</th>
+                  <tr className="bg-violet-100 text-slate-700 text-center" style={{color: '#1e293b'}}>
+                    <th className="py-2 rounded-l-lg" style={{color: '#1e293b'}}>No</th>
+                    <th style={{color: '#1e293b'}}>Nama</th>
                     <th>Kategori</th>
                     <th>Tanggal</th>
                     <th>Status</th>
