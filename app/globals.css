@@ -24,3 +24,10 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+table th {
+  color: #1e293b !important;
+}
+
+table td {
+  color: #334155 !important;
+}
