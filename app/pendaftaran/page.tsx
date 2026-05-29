@@ -407,7 +407,7 @@ const handleHapus = async (id: number) => {
 
         {/* FORM */}
         {role !== "bidan" && (
-        <div className="mb-6 bg-white/80 backdrop-blur p-6 rounded-2xl shadow-lg border border-violet-100">
+        <div className="mb-6 bg-white/80 backdrop-blur p-6 rounded-2xl shadow-lg border border-violet-100 text-slate-800">
           <h2 className="mb-4 font-semibold text-violet-700">
             ➕ Tambah Peserta
           </h2>
