@@ -185,7 +185,7 @@ async function loadData(posId: string) {
 
         {/* HEADER */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-violet-600 to-indigo-600 text-transparent bg-clip-text">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-violet-600 to-indigo-600 text-transparent inline-block">
             📊 Dashboard Kader
           </h1>
           <p className="text-gray-500 text-sm">
