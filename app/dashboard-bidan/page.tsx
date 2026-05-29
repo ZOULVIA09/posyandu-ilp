@@ -167,7 +167,7 @@ export default function DashboardPage() {
   [stats.perKategori]);
 
   const navItems = [
-    { href: "/dashboard",   icon: "📊", label: "Dashboard" },
+    { href: "/dashboard-bidan",   icon: "📊", label: "Dashboard" },
     { href: "/pendaftaran", icon: "📝", label: "Pendaftaran" },
     { href: "/pemeriksaan", icon: "🩺", label: "Pemeriksaan" },
     { href: "/pelayanan",   icon: "💊", label: "Pelayanan" },
