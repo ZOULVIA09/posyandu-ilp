@@ -345,10 +345,13 @@ const handlePeriksa = (item: any) => {
                   ({dataPeserta.length} peserta)
                 </span>
               </div>
+              {loadingData && (
+                <div className="text-sm text-slate-400 animate-pulse">Memuat data...</div>
+              )}
+            </div>
           )}
         </div>
       )}
-
             {loadingData && (
               <div className="text-sm text-slate-400 animate-pulse">Memuat data...</div>
             )}
