@@ -314,46 +314,41 @@ const handlePeriksa = (item: any) => {
 
         {/* ── BIDAN: PILIH POSYANDU ─────────────────────────────────────────── */}
         {role === "bidan" && (
-        <div className="bg-white p-5 rounded-2xl shadow mb-6">
-          <p className="text-sm font-medium text-slate-600 mb-3">
-            Pilih Posyandu yang ingin dilihat:
-          </p>
-      
-          {/* GRID TOMBOL POSYANDU */}
-          <div className="grid grid-cols-3 md:grid-cols-5 gap-2 mb-4">
-            {DAFTAR_POSYANDU.map((p) => (
-              <button
-                key={p.posId}
-                onClick={() => handleBidanPilihPos(p.posId, p.label)}
-                className={`py-2 px-3 rounded-xl text-sm font-medium border transition ${
-                  activePosId === p.posId
-                    ? "bg-indigo-600 text-white border-indigo-600 shadow"
-                    : "bg-white text-slate-600 border-slate-300 hover:border-indigo-400 hover:text-indigo-600"
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-      
-          {/* INFO POSYANDU AKTIF */}
-          {activePosId && (
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="bg-indigo-50 border border-indigo-200 text-indigo-700 px-4 py-2 rounded-lg text-sm font-medium">
-                📍 Menampilkan: <b>{bidanSelectedLabel}</b>
-                <span className="ml-2 text-slate-400">
-                  ({dataPeserta.length} peserta)
-                </span>
-              </div>
-              {loadingData && (
-                <div className="text-sm text-slate-400 animate-pulse">Memuat data...</div>
-              )}
+          <div className="bg-white p-5 rounded-2xl shadow mb-6">
+            <p className="text-sm font-medium text-slate-600 mb-3">
+              Pilih Posyandu yang ingin dilihat:
+            </p>
+
+            <div className="grid grid-cols-3 md:grid-cols-5 gap-2 mb-4">
+              {DAFTAR_POSYANDU.map((p) => (
+                <button
+                  key={p.posId}
+                  onClick={() => handleBidanPilihPos(p.posId, p.label)}
+                  className={`py-2 px-3 rounded-xl text-sm font-medium border transition ${
+                    activePosId === p.posId
+                      ? "bg-indigo-600 text-white border-indigo-600 shadow"
+                      : "bg-white text-slate-600 border-slate-300 hover:border-indigo-400 hover:text-indigo-600"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
             </div>
-          )}
-        </div>
-      )}
-            {loadingData && (
-              <div className="text-sm text-slate-400 animate-pulse">Memuat data...</div>
+
+            {activePosId && (
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="bg-indigo-50 border border-indigo-200 text-indigo-700 px-4 py-2 rounded-lg text-sm font-medium">
+                  📍 Menampilkan: <b>{bidanSelectedLabel}</b>
+                  <span className="ml-2 text-slate-400">
+                    ({dataPeserta.length} peserta)
+                  </span>
+                </div>
+                {loadingData && (
+                  <div className="text-sm text-slate-400 animate-pulse">
+                    Memuat data...
+                  </div>
+                )}
+              </div>
             )}
           </div>
         )}
