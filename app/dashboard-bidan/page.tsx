@@ -192,7 +192,7 @@ export default function DashboardPage() {
       <aside className="w-64 bg-gradient-to-b from-violet-600 via-purple-600 to-indigo-600 text-white p-5 flex flex-col justify-between shadow-xl">
         <div>
           <div className="mb-8">
-            <h2 className="text-2xl font-bold">🌸 Posyandu ILP Desa Sumberurip</h2>
+            <h2 className="text-2xl font-bold">Posyandu ILP Desa Sumberurip</h2>
             <p className="text-sm text-white/70">Bidan</p>
           </div>
           <nav className="space-y-2">
@@ -213,7 +213,7 @@ export default function DashboardPage() {
           onClick={() => { localStorage.removeItem("role"); window.location.href = "/login"; }}
           className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-red-500 to-pink-500 p-2 rounded-lg hover:scale-105 transition shadow"
         >
-          🚪 Logout
+          Logout
         </button>
       </aside>
 
