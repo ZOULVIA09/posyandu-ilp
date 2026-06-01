@@ -314,38 +314,41 @@ const handlePeriksa = (item: any) => {
 
         {/* ── BIDAN: PILIH POSYANDU ─────────────────────────────────────────── */}
         {role === "bidan" && (
-          <div className="bg-white p-5 rounded-2xl shadow mb-6 flex flex-wrap items-center gap-4">
-            <div>
-              <p className="text-sm text-slate-500 mb-1">Pilih Posyandu yang ingin dilihat:</p>
-              <select
-                value={activePosId ?? ""}
-                onChange={(e) => {
-                  const id = Number(e.target.value);
-                  const label = DAFTAR_POSYANDU.find((p) => p.posId === id)?.label || "";
-                  handleBidanPilihPos(id, label);
-                }}
-                className="border border-slate-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 min-w-[180px]"
-              >
-                <option value="">-- Pilih Posyandu --</option>
-                {DAFTAR_POSYANDU.map((p) => (
-                  <option key={p.posId} value={p.posId}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
+          <div className="bg-white p-5 rounded-2xl shadow mb-6">
+            <p className="text-sm font-medium text-slate-600 mb-3">
+              Pilih Posyandu yang ingin dilihat:
+            </p>
+
+            <div className="grid grid-cols-3 md:grid-cols-5 gap-2 mb-4">
+              {DAFTAR_POSYANDU.map((p) => (
+                <button
+                  key={p.posId}
+                  onClick={() => handleBidanPilihPos(p.posId, p.label)}
+                  className={`py-2 px-3 rounded-xl text-sm font-medium border transition ${
+                    activePosId === p.posId
+                      ? "bg-indigo-600 text-white border-indigo-600 shadow"
+                      : "bg-white text-slate-600 border-slate-300 hover:border-indigo-400 hover:text-indigo-600"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
             </div>
 
             {activePosId && (
-              <div className="bg-indigo-50 border border-indigo-200 text-indigo-700 px-4 py-2 rounded-lg text-sm font-medium">
-                📍 Menampilkan: <b>{bidanSelectedLabel}</b>
-                <span className="ml-2 text-slate-400">
-                  ({dataPeserta.length} peserta)
-                </span>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="bg-indigo-50 border border-indigo-200 text-indigo-700 px-4 py-2 rounded-lg text-sm font-medium">
+                  📍 Menampilkan: <b>{bidanSelectedLabel}</b>
+                  <span className="ml-2 text-slate-400">
+                    ({dataPeserta.length} peserta)
+                  </span>
+                </div>
+                {loadingData && (
+                  <div className="text-sm text-slate-400 animate-pulse">
+                    Memuat data...
+                  </div>
+                )}
               </div>
-            )}
-
-            {loadingData && (
-              <div className="text-sm text-slate-400 animate-pulse">Memuat data...</div>
             )}
           </div>
         )}
@@ -391,12 +394,12 @@ const handlePeriksa = (item: any) => {
               <table className="w-full text-sm text-center">
                 <thead>
                   <tr className="bg-indigo-100">
-                    <th className="py-2">No</th>
-                    <th>Nama</th>
-                    <th>NIK</th>
-                    <th>Alamat</th>
-                    <th>Kategori</th>
-                    <th>Aksi</th>
+                    <th className="py-2" style={{color: '#1e293b'}}>No</th>
+                    <th style={{color: '#1e293b'}}>Nama</th>
+                    <th style={{color: '#1e293b'}}>NIK</th>
+                    <th style={{color: '#1e293b'}}>Alamat</th>
+                    <th style={{color: '#1e293b'}}>Kategori</th>
+                    <th style={{color: '#1e293b'}}>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -465,12 +468,16 @@ const handlePeriksa = (item: any) => {
 
         {/* ── PLACEHOLDER bidan belum pilih pos ───────────────────────────── */}
         {role === "bidan" && !activePosId && (
-          <div className="bg-white p-10 rounded-2xl shadow text-center text-slate-400 mb-6">
-            <p className="text-4xl mb-3">🏥</p>
-            <p className="text-base font-medium">Pilih posyandu terlebih dahulu</p>
-            <p className="text-sm mt-1">Gunakan dropdown di atas untuk memilih Posyandu 1 – 9</p>
-          </div>
-        )}
+        <div className="bg-white p-10 rounded-2xl shadow text-center text-slate-400 mb-6">
+          <p className="text-4xl mb-3">🏥</p>
+          <p className="text-base font-medium text-slate-500">
+            Pilih salah satu posyandu di atas
+          </p>
+          <p className="text-sm mt-1">
+            Data peserta dan pemeriksaan akan tampil setelah posyandu dipilih
+          </p>
+        </div>
+      )}
 
         {/* ── FORM PEMERIKSAAN (kader only) ────────────────────────────────── */}
         {canEdit && (
@@ -719,9 +726,9 @@ const handlePeriksa = (item: any) => {
             <div className="overflow-x-auto">
               <table className="w-full text-sm border-separate border-spacing-y-2">
                 <thead>
-                  <tr className="bg-violet-100 text-slate-700 text-center">
-                    <th className="py-2 rounded-l-lg">No</th>
-                    <th>Nama</th>
+                  <tr className="bg-violet-100 text-slate-700 text-center" style={{color: '#1e293b'}}>
+                    <th className="py-2 rounded-l-lg" style={{color: '#1e293b'}}>No</th>
+                    <th style={{color: '#1e293b'}}>Nama</th>
                     <th>Kategori</th>
                     <th>Tanggal</th>
                     <th>Status</th>
