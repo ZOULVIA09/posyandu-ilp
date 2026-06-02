@@ -109,34 +109,55 @@ export default function LaporanPage() {
       const pesertaData = await pesertaRes.json();
       setDaftarPeserta(Array.isArray(pesertaData) ? pesertaData : []);
 
-      const pelRes = await fetch("/api/pelayanan");
-      const pelData = await pelRes.json();
-      if (Array.isArray(pelData)) {
-        const hasilLaporan = pelData.map((item: any) => {
-        // Gabungkan hasil AI dan catatan validasi bidan
-        const hasilPemeriksaan = item.ringkasan
-        ? `✍️ ${item.ringkasan}`
-        : item.hasilAi
-        ? `🤖 ${item.hasilAi.slice(0, 100)}...`
-        : "-";
+const pemRes = await fetch("/api/pemeriksaan");
+const pemData = await pemRes.json();
+if (Array.isArray(pemData)) {
+  const hasilLaporan = pemData.map((item: any) => {
+    // Susun ringkasan pemeriksaan dari field-field numerik yang tersedia
+    const bagianRingkasan: string[] = [];
 
-        return {
-          id: item.id,
-          nama: item.peserta?.nama ?? "-",
-          nik: item.peserta?.nik ?? "-",
-          alamat: item.peserta?.alamat ?? "-",
-          kategori: item.kategori,
-          tanggal: item.tanggal,
-          ringkasanPemeriksaan: hasilPemeriksaan, // ← gabungan AI + bidan
-          pos: item.peserta?.posyandu?.nama ?? "-",
-          status: "Hadir",
-          kondisi: (item.hasilAi + " " + item.ringkasan)
-            ?.toLowerCase()
-            .includes("resiko") ? "resiko" : "normal",
-        };
-      });
-      setData(hasilLaporan);
-      }
+    if (item.bb || item.tb) bagianRingkasan.push(`BB: ${item.bb ?? "-"} kg, TB: ${item.tb ?? "-"} cm`);
+    if (item.tekananDarah) bagianRingkasan.push(`TD: ${item.tekananDarah}`);
+    if (item.usiaKehamilan) bagianRingkasan.push(`Usia Kehamilan: ${item.usiaKehamilan} minggu`);
+    if (item.statusBbU) bagianRingkasan.push(`Status BB/U: ${item.statusBbU}`);
+    if (item.statusTbU) bagianRingkasan.push(`Status TB/U: ${item.statusTbU}`);
+    if (item.statusImt) bagianRingkasan.push(`IMT: ${item.statusImt}`);
+    if (item.imt) bagianRingkasan.push(`IMT: ${item.imt}`);
+    if (item.lila) bagianRingkasan.push(`LILA: ${item.lila} cm`);
+
+    const ringkasanPemeriksaan = bagianRingkasan.length > 0
+      ? bagianRingkasan.join(" | ")
+      : "-";
+
+    // Deteksi kondisi risiko dari status-status pemeriksaan
+    const semuaStatus = [
+      item.statusBbU, item.statusTbU, item.statusBbTb, item.statusLingkar,
+      item.statusImt, item.statusTekananDarah, item.statusImtBumil,
+      item.statusLilaBumil, item.statusTdBumil, item.statusImtRemaja,
+      item.statusTdRemaja,
+    ].filter(Boolean).join(" ").toLowerCase();
+
+    const kondisi = semuaStatus.includes("resiko") || semuaStatus.includes("risiko")
+      || semuaStatus.includes("kurang") || semuaStatus.includes("buruk")
+      || semuaStatus.includes("lebih") || semuaStatus.includes("tinggi")
+      ? "resiko"
+      : "normal";
+
+    return {
+      id: item.id,
+      nama: item.peserta?.nama ?? "-",
+      nik: item.peserta?.nik ?? "-",
+      alamat: item.peserta?.alamat ?? "-",
+      kategori: item.kategori,
+      tanggal: item.tanggal,
+      ringkasanPemeriksaan,
+      pos: item.posyandu?.nama ?? "-",
+      status: "Hadir",
+      kondisi,
+    };
+  });
+  setData(hasilLaporan);
+}
     };
     init();
   }, []);
