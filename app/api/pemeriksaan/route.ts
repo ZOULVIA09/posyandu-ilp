@@ -12,15 +12,16 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const posIdParam = searchParams.get("posId");
+    const pesertaIdParam = searchParams.get("pesertaId");
 
     let where: any = {};
 
-    if (currentUser.role === "KADER") {
-      // ✅ Kader hanya lihat miliknya di posnya
-      where = {
-        createdById: currentUser.id,
-        posId: currentUser.currentPosId,
-      };
+      if (currentUser.role === "KADER") {
+    where = {
+      posId: currentUser.currentPosId,        // ← filter pos
+      ...(pesertaIdParam && { pesertaId: Number(pesertaIdParam) }),
+    };
+
     } else if (currentUser.role === "BIDAN") {
       // ✅ Bidan filter by posId, atau semua jika tidak ada posId
       where = posIdParam
