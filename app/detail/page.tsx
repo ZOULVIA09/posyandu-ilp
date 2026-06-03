@@ -184,17 +184,23 @@ useEffect(() => {
     const pesertaRes = await fetch(`/api/peserta/${id}`);
     if (pesertaRes.ok) setPeserta(await pesertaRes.json());
 
-    const pemRes = await fetch(`/api/pemeriksaan?pesertaId=${id}`);
-    if (pemRes.ok) {
-      const pemData = await pemRes.json();
-      setRiwayat(Array.isArray(pemData) ? [...pemData].reverse() : []);
-    }
+      const pemRes = await fetch(`/api/pemeriksaan?pesertaId=${id}`);
+  if (pemRes.ok) {
+    const pemData = await pemRes.json();
+    const filtered = Array.isArray(pemData)
+      ? pemData.filter((p: PemeriksaanRecord) => p.id === id || (p as any).pesertaId === id)
+      : [];
+    setRiwayat([...filtered].reverse());
+  }
 
-    const pelRes = await fetch(`/api/pelayanan?pesertaId=${id}`);
-    if (pelRes.ok) {
-      const pelData = await pelRes.json();
-      setRiwayatPelayanan(Array.isArray(pelData) ? [...pelData].reverse() : []);
-    }
+  const pelRes = await fetch(`/api/pelayanan?pesertaId=${id}`);
+  if (pelRes.ok) {
+    const pelData = await pelRes.json();
+    const filteredPel = Array.isArray(pelData)
+      ? pelData.filter((p: any) => p.pesertaId === id)
+      : [];
+    setRiwayatPelayanan([...filteredPel].reverse());
+  }
   };
 
   if (id) init();
