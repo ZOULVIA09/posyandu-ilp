@@ -75,10 +75,19 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
+    const now = new Date();
+    const tanggalFormatted = now.toLocaleDateString("id-ID", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      timeZone: "Asia/Jakarta",
+    });
+
 
     const pelayanan = await prisma.pelayanan.create({
       data: {
-        tanggal: body.tanggal,
+        tanggal: tanggalFormatted,
         kategori: body.kategori,
         hasilAi: body.hasilAi ?? null,
         ringkasan: body.ringkasan ?? null,
