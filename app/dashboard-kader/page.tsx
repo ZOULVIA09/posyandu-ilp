@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -13,12 +13,47 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-function getTanggalHariIni() {
-  return new Date().toLocaleDateString("id-ID", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+const NAMA_BULAN = [
+  "Januari","Februari","Maret","April","Mei","Juni",
+  "Juli","Agustus","September","Oktober","November","Desember",
+];
+
+const LABEL_POS: Record<string, string> = {
+  "pos-a": "Pos Mawar",
+  "pos-b": "Pos Melati",
+};
+
+const KATEGORI_COLOR: Record<string, { bg: string; text: string; dot: string }> = {
+  balita:             { bg: "bg-sky-50",    text: "text-sky-700",    dot: "#0ea5e9" },
+  ibu_hamil:          { bg: "bg-pink-50",   text: "text-pink-700",   dot: "#ec4899" },
+  ibu_nifas_menyusui: { bg: "bg-rose-50",   text: "text-rose-700",   dot: "#f43f5e" },
+  ibu_nifas:          { bg: "bg-rose-50",   text: "text-rose-700",   dot: "#f43f5e" },
+  lansia:             { bg: "bg-amber-50",  text: "text-amber-700",  dot: "#f59e0b" },
+  remaja:             { bg: "bg-violet-50", text: "text-violet-700", dot: "#8b5cf6" },
+};
+
+function getBulanKey(tanggal: string) {
+  if (!tanggal) return null;
+  // format YYYY-MM-DD
+  if (tanggal.includes("-") && tanggal.length >= 7) {
+    const [y, m] = tanggal.split("-");
+    return `${y}-${m.padStart(2, "0")}`;
+  }
+  // format "12 Juni 2025"
+  const parts = tanggal.split(" ");
+  if (parts.length === 3) {
+    const bulanIdx = NAMA_BULAN.findIndex(
+      (b) => b.toLowerCase() === parts[1].toLowerCase()
+    );
+    if (bulanIdx !== -1)
+      return `${parts[2]}-${String(bulanIdx + 1).padStart(2, "0")}`;
+  }
+  return null;
+}
+
+function formatBulanLabel(key: string) {
+  const [y, m] = key.split("-");
+  return `${NAMA_BULAN[parseInt(m) - 1]?.slice(0, 3)} '${y.slice(2)}`;
 }
 
 function perluPerhatian(item: any): boolean {
@@ -70,85 +105,156 @@ function labelStatus(item: any): string {
   return parts.join(", ") || "-";
 }
 
-const KATEGORI_WARNA: Record<string, string> = {
-  balita:             "bg-green-100 text-green-700",
-  ibu_hamil:          "bg-pink-100 text-pink-700",
-  ibu_nifas_menyusui: "bg-rose-100 text-rose-700",
-  lansia:             "bg-orange-100 text-orange-700",
-  remaja:             "bg-blue-100 text-blue-700",
-};
-
-const LABEL_POS: Record<string, string> = {
-  "pos-a": "Pos Mawar",
-  "pos-b": "Pos Melati",
-};
+function CustomTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-violet-950 text-white px-3 py-2 rounded-xl text-xs shadow-xl">
+      <p className="font-semibold mb-1">{label}</p>
+      {payload.map((p: any, i: number) => (
+        <p key={i} style={{ color: p.color }}>
+          {p.name}: <span className="font-bold">{p.value}</span>
+        </p>
+      ))}
+    </div>
+  );
+}
 
 export default function DashboardKader() {
   const router   = useRouter();
   const pathname = usePathname();
 
-  const [posKader, setPosKader]               = useState("");
-  const [totalHariIni, setTotalHariIni]       = useState(0);
-  const [kehadiranHariIni, setKehadiranHariIni] = useState(0);
-  const [perhatianList, setPerhatianList]     = useState<any[]>([]);
-  const [grafik, setGrafik]                   = useState<Record<string, number>>({});
-  const [showDetail, setShowDetail]           = useState(false);
+  const [posKader, setPosKader]       = useState("");
+  const [allPeserta, setAllPeserta]   = useState<any[]>([]);
+  const [allPeriksa, setAllPeriksa]   = useState<any[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [showModal, setShowModal]     = useState(false);
+  const [bulanAktif, setBulanAktif]   = useState("");
 
-useEffect(() => {
-  const role = localStorage.getItem("role");
-  if (role !== "kader") {
-    router.push("/login");
-    return;
+  const hariIni = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  }, []);
+
+  const tanggalLabel = useMemo(() =>
+    new Date().toLocaleDateString("id-ID", {
+      weekday: "long", day: "numeric", month: "long", year: "numeric",
+    }), []);
+
+  // Tanggal hari ini dalam format lokal (untuk filter kehadiran hari ini)
+  const tanggalHariIni = useMemo(() =>
+    new Date().toLocaleDateString("id-ID", {
+      day: "numeric", month: "long", year: "numeric",
+    }), []);
+
+  useEffect(() => {
+    const role = localStorage.getItem("role");
+    if (role !== "kader") { router.push("/login"); return; }
+    const posId = localStorage.getItem("posId");
+    if (!posId) return;
+    setPosKader(posId);
+    loadData(posId);
+  }, []);
+
+  async function loadData(posId: string) {
+    try {
+      const [resPeserta, resPeriksa] = await Promise.all([
+        fetch(`/api/peserta?posId=${posId}`),
+        fetch(`/api/pemeriksaan?posId=${posId}`),
+      ]);
+      const peserta  = await resPeserta.json();
+      const periksa  = await resPeriksa.json();
+      if (Array.isArray(peserta)) setAllPeserta(peserta);
+      if (Array.isArray(periksa)) setAllPeriksa(periksa);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  const posId = localStorage.getItem("posId"); 
-  if (!posId) return;
+  // ── Statistik ─────────────────────────────────────────────
+  const stats = useMemo(() => {
+    const pesertaHariIni = allPeserta.filter((p) => p.tanggal === tanggalHariIni);
+    const totalHariIni   = pesertaHariIni.length;
+    const hadirHariIni   = pesertaHariIni.filter((p) => p.hadir === true).length;
 
-  setPosKader(posId);
+    const bulanIniList   = allPeserta.filter((p) => getBulanKey(p.tanggal) === hariIni);
+    const perhatianAll   = allPeriksa.filter(perluPerhatian);
+    const perhatianBulan = allPeriksa.filter(
+      (p) => perluPerhatian(p) && getBulanKey(p.tanggal) === hariIni
+    );
 
-  loadData(posId);
-}, []);
-
-async function loadData(posId: string) {
-  const hariIni = getTanggalHariIni();
-
-  // ──────────────── Ambil peserta by pos ───────────────
-  const resPeserta = await fetch(`/api/peserta?posId=${posId}`);
-  const peserta = await resPeserta.json();
-
-  const pesertaHariIni = peserta.filter((p: any) => p.tanggal === hariIni);
-
-  setTotalHariIni(pesertaHariIni.length);
-  setKehadiranHariIni(pesertaHariIni.filter((p: any) => p.hadir === true).length);
-
-  // Grafik hadir per bulan
-  const grafikMap: Record<string, number> = {};
-  peserta
-    .filter((p: any) => p.hadir === true)
-    .forEach((p: any) => {
-      const key = p.bulan || p.tanggal?.split(" ").slice(1).join(" ") || "?";
-      grafikMap[key] = (grafikMap[key] || 0) + 1;
+    const perKategori: Record<string, number> = {};
+    allPeserta.forEach((p) => {
+      const k = p.kategori ?? "lain";
+      perKategori[k] = (perKategori[k] ?? 0) + 1;
     });
 
-  setGrafik(grafikMap);
+    return {
+      totalHariIni,
+      hadirHariIni,
+      bulanIni: bulanIniList.length,
+      perhatianAll,
+      perhatianBulan,
+      perKategori,
+      totalSemua: allPeserta.length,
+    };
+  }, [allPeserta, allPeriksa, hariIni, tanggalHariIni]);
 
-  // ──────────────── Ambil pemeriksaan by pos ───────────────
-  const resPemeriksaan = await fetch(`/api/pemeriksaan?posId=${posId}`);
-  const pemeriksaan = await resPemeriksaan.json();
+  // ── Grafik kehadiran per bulan (6 lalu + sekarang + 5 mendatang) ──
+  const grafikData = useMemo(() => {
+    const now = new Date();
+    return Array.from({ length: 12 }, (_, i) => {
+      const delta = i - 6;
+      const d   = new Date(now.getFullYear(), now.getMonth() + delta, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      return {
+        key,
+        bulan:    formatBulanLabel(key),
+        jumlah:   allPeserta.filter(
+          (p) => p.hadir === true && getBulanKey(p.tanggal) === key
+        ).length,
+        isNow:    key === hariIni,
+        isFuture: delta > 0,
+      };
+    });
+  }, [allPeserta, hariIni]);
 
-  const butuh = pemeriksaan.filter((p: any) => perluPerhatian(p));
-  setPerhatianList(butuh);
-}
+  // ── Distribusi kategori ──
+  const kategoriData = useMemo(() =>
+    Object.entries(stats.perKategori)
+      .map(([k, v]) => ({ label: k.replace(/_/g, " "), value: v, key: k }))
+      .sort((a, b) => b.value - a.value),
+  [stats.perKategori]);
 
-  const grafikData = Object.entries(grafik).map(([bulan, jumlah]) => ({
-  bulan,
-  jumlah,
-}));
+  // ── Modal list ──
+  const modalList = useMemo(() => {
+    if (!bulanAktif) return stats.perhatianAll;
+    return stats.perhatianAll.filter(
+      (p) => getBulanKey(p.tanggal) === bulanAktif
+    );
+  }, [stats.perhatianAll, bulanAktif]);
+
+  const navItems = [
+    { href: "/dashboard-kader", label: "📊 Dashboard" },
+    { href: "/pendaftaran",     label: "📝 Pendaftaran" },
+    { href: "/pemeriksaan",     label: "🩺 Pemeriksaan" },
+    { href: "/laporan",         label: "📄 Laporan" },
+  ];
+
+  if (loading) return (
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-violet-50 via-white to-indigo-50">
+      <div className="flex gap-2">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="w-3 h-3 rounded-full bg-violet-400 animate-bounce"
+            style={{ animationDelay: `${i * 0.15}s` }} />
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex min-h-screen bg-gradient-to-b from-violet-50 via-white to-indigo-50">
 
-      {/* SIDEBAR */}
+      {/* ══ SIDEBAR ══ */}
       <aside className="w-64 bg-gradient-to-b from-violet-600 via-purple-600 to-indigo-600 text-white p-5 flex flex-col justify-between shadow-xl">
         <div>
           <div className="mb-8">
@@ -158,12 +264,7 @@ async function loadData(posId: string) {
             </p>
           </div>
           <nav className="space-y-2">
-            {[
-              { href: "/dashboard-kader", label: "📊 Dashboard" },
-              { href: "/pendaftaran",     label: "📝 Pendaftaran" },
-              { href: "/pemeriksaan",     label: "🩺 Pemeriksaan" },
-              { href: "/laporan",         label: "📄 Laporan" },
-            ].map(({ href, label }) => (
+            {navItems.map(({ href, label }) => (
               <Link key={href} href={href}
                 className={`flex items-center gap-2 p-2 rounded-lg transition ${
                   pathname === href ? "bg-white/20 backdrop-blur shadow" : "hover:bg-white/10"
@@ -180,209 +281,341 @@ async function loadData(posId: string) {
         </button>
       </aside>
 
-      {/* MAIN */}
-      <main className="flex-1 p-6">
+      {/* ══ MAIN ══ */}
+      <main className="flex-1 overflow-auto p-7 space-y-6">
 
-        {/* HEADER */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-violet-600 to-indigo-600 text-transparent inline-block">
-            📊 Dashboard Kader
-          </h1>
-          <p className="text-gray-500 text-sm">
-            {getTanggalHariIni()}
-            {posKader && (
-              <span className="ml-2 bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full text-xs font-semibold">
-                {LABEL_POS[posKader] || posKader}
-              </span>
-            )}
-          </p>
+        {/* Header */}
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-xs font-bold tracking-widest text-slate-400 uppercase mb-1">
+              {tanggalLabel}
+            </p>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-violet-600 to-indigo-600 text-transparent bg-clip-text">
+              📊 Dashboard Kader
+            </h1>
+            <p className="text-gray-500 text-sm mt-1">
+              Data khusus {LABEL_POS[posKader] || posKader || "pos kader"}
+            </p>
+          </div>
+          <div className="bg-white/80 backdrop-blur border border-violet-100 rounded-2xl px-4 py-2 text-right shadow-sm">
+            <p className="text-xs text-slate-400 font-medium">Total semua peserta</p>
+            <p className="text-2xl font-bold text-violet-600">{stats.totalSemua}</p>
+            <p className="text-[10px] text-slate-400">di {LABEL_POS[posKader] || posKader}</p>
+          </div>
         </div>
 
-        {/* CARD RINGKASAN */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
-
-          {/* Total Peserta */}
-          <div className="bg-white/80 backdrop-blur p-5 rounded-2xl shadow hover:shadow-xl hover:scale-105 transition border-l-4 border-violet-500">
-            <h2 className="text-gray-500 text-sm">Total Peserta Hari Ini</h2>
-            <p className="text-4xl font-bold text-violet-600 mt-2">{totalHariIni}</p>
-            <p className="text-xs text-gray-400 mt-1">
-              {LABEL_POS[posKader] || "pos kader"} · hari ini
-            </p>
-          </div>
-
-          {/* Kehadiran */}
-          <div className="bg-white/80 backdrop-blur p-5 rounded-2xl shadow hover:shadow-xl hover:scale-105 transition border-l-4 border-indigo-500">
-            <h2 className="text-gray-500 text-sm">Hadir Hari Ini</h2>
-            <p className="text-4xl font-bold text-indigo-600 mt-2">{kehadiranHariIni}</p>
-            <p className="text-xs text-gray-400 mt-1">
-              {totalHariIni > 0
-                ? `${Math.round((kehadiranHariIni / totalHariIni) * 100)}% dari total terdaftar`
-                : "belum ada peserta terdaftar hari ini"}
-            </p>
-          </div>
-
-          {/* Perlu Perhatian */}
-          <div
-            onClick={() => perhatianList.length > 0 && setShowDetail(true)}
-            className={`bg-white/80 backdrop-blur p-5 rounded-2xl shadow hover:shadow-xl hover:scale-105 transition border-l-4 border-pink-500 ${
-              perhatianList.length > 0 ? "cursor-pointer" : ""
-            }`}
-          >
-            <h2 className="text-gray-500 text-sm">Perlu Perhatian</h2>
-            <p className="text-4xl font-bold text-pink-600 mt-2">{perhatianList.length}</p>
-            <p className="text-xs text-pink-400 mt-1">
-              {perhatianList.length > 0
-                ? "Klik untuk lihat detail →"
-                : "Semua hasil pemeriksaan normal"}
-            </p>
-          </div>
-
+        {/* ── Stat Cards ── */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            {
+              label:  "Hadir Hari Ini",
+              value:  stats.hadirHariIni,
+              sub:    stats.totalHariIni > 0
+                        ? `${Math.round((stats.hadirHariIni / stats.totalHariIni) * 100)}% dari ${stats.totalHariIni} terdaftar`
+                        : "belum ada peserta terdaftar",
+              accent: "border-violet-500",
+              color:  "text-violet-600",
+              bg:     "bg-violet-50",
+              icon:   "✅",
+            },
+            {
+              label:  "Peserta Bulan Ini",
+              value:  stats.bulanIni,
+              sub:    "peserta terdaftar",
+              accent: "border-indigo-400",
+              color:  "text-indigo-600",
+              bg:     "bg-indigo-50",
+              icon:   "🗓",
+            },
+            {
+              label:   "Perlu Perhatian",
+              value:   stats.perhatianAll.length,
+              sub:     "dari semua data pemeriksaan",
+              accent:  "border-amber-400",
+              color:   "text-amber-600",
+              bg:      "bg-amber-50",
+              icon:    "⚠️",
+              onClick: () => { setBulanAktif(""); setShowModal(true); },
+            },
+            {
+              label:   "Risiko Bulan Ini",
+              value:   stats.perhatianBulan.length,
+              sub:     "perlu tindak lanjut",
+              accent:  "border-pink-400",
+              color:   "text-pink-600",
+              bg:      "bg-pink-50",
+              icon:    "🚨",
+              onClick: () => { setBulanAktif(hariIni); setShowModal(true); },
+            },
+          ].map((s) => (
+            <div
+              key={s.label}
+              onClick={(s as any).onClick}
+              className={`bg-white/80 backdrop-blur border-l-4 ${s.accent} rounded-2xl p-4 shadow hover:shadow-xl hover:scale-105 transition-all ${
+                (s as any).onClick ? "cursor-pointer" : ""
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className={`text-xs font-semibold ${s.color}`}>{s.label}</span>
+                <span className={`${s.bg} rounded-lg w-8 h-8 flex items-center justify-center text-base`}>
+                  {s.icon}
+                </span>
+              </div>
+              <p className={`text-3xl font-bold ${s.color}`}>{s.value}</p>
+              <p className="text-[11px] text-gray-400 mt-0.5">{s.sub}</p>
+              {(s as any).onClick && (
+                <p className="text-[10px] text-gray-300 mt-1">Klik untuk detail →</p>
+              )}
+            </div>
+          ))}
         </div>
 
-        {/* MODAL PERLU PERHATIAN */}
-        {showDetail && (
-          <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto">
-              <div className="flex justify-between items-center p-5 border-b">
-                <h3 className="text-lg font-bold text-pink-600">
-                  ⚠️ Peserta Perlu Perhatian ({perhatianList.length})
-                </h3>
-                <button onClick={() => setShowDetail(false)}
-                  className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+        {/* ── Grafik + Distribusi ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+          {/* Area Chart */}
+          <div className="lg:col-span-2 bg-white/80 backdrop-blur rounded-2xl shadow-lg border border-violet-100 p-5 hover:shadow-xl transition">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-violet-600">📈 Tren Kehadiran Per Bulan</h2>
+                <p className="text-xs text-gray-400">
+                  6 bulan lalu · sekarang · 5 bulan mendatang —{" "}
+                  {LABEL_POS[posKader] || posKader}
+                </p>
               </div>
-              <div className="p-5">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-pink-50 text-left">
-                      <th className="py-2 px-2">Nama</th>
-                      <th className="px-2">Kategori</th>
-                      <th className="px-2">Masalah</th>
-                      <th className="px-2">Tanggal</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {perhatianList.map((item, i) => (
-                      <tr key={i} className="border-t">
-                        <td className="py-2 px-2 font-semibold text-slate-700">{item.nama}</td>
-                        <td className="px-2">
-                          <span className={`px-2 py-0.5 rounded-full text-xs ${KATEGORI_WARNA[item.kategori] ?? "bg-gray-100 text-gray-600"}`}>
-                            {item.kategori?.replace(/_/g, " ")}
-                          </span>
-                        </td>
-                        <td className="px-2 text-pink-700 font-medium">{labelStatus(item)}</td>
-                        <td className="px-2 text-gray-400 text-xs">{item.tanggal || "-"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                <span className="w-3 h-0.5 bg-violet-500 inline-block rounded" />
+                peserta hadir
               </div>
             </div>
-          </div>
-        )}
 
-        {/* GRAFIK */}
-        <div className="bg-white/80 backdrop-blur p-6 rounded-2xl shadow-lg border border-violet-100 hover:shadow-xl transition mb-6">
-          <h2 className="text-lg font-semibold mb-1 text-violet-600">
-            📈 Grafik Kehadiran Per Bulan
-          </h2>
-
-          <p className="text-xs text-gray-400 mb-4">
-            Data kehadiran khusus {LABEL_POS[posKader] || "pos kader"}
-          </p>
-
-          {grafikData.length === 0 ? (
-            <div className="h-48 flex flex-col items-center justify-center text-gray-400 gap-2">
-              <span className="text-5xl">📊</span>
-              <p>Belum ada data kehadiran</p>
-            </div>
-          ) : (
-            <div className="w-full h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={grafikData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-
-                  <XAxis
-                    dataKey="bulan"
-                    tick={{ fontSize: 12 }}
-                  />
-
-                  <YAxis allowDecimals={false} />
-
-                  <Tooltip />
-
-                  <Line
+            {grafikData.every((d) => d.jumlah === 0) ? (
+              <div className="h-52 flex flex-col items-center justify-center text-gray-300 gap-2">
+                <span className="text-4xl">📊</span>
+                <p className="text-sm">Belum ada data kehadiran</p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={220}>
+                <AreaChart data={grafikData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="violetGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="#7c3aed" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#7c3aed" stopOpacity={0}   />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="bulan" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area
                     type="monotone"
                     dataKey="jumlah"
+                    name="Hadir"
                     stroke="#7c3aed"
                     strokeWidth={3}
-                    dot={{ r: 5 }}
-                    activeDot={{ r: 7 }}
+                    fill="url(#violetGrad)"
+                    dot={(props: any) => {
+                      const { cx, cy, payload } = props;
+                      if (payload.isNow)    return <circle key={cx} cx={cx} cy={cy} r={6} fill="#7c3aed" stroke="#fff" strokeWidth={2} />;
+                      if (payload.isFuture) return <circle key={cx} cx={cx} cy={cy} r={3} fill="#e2e8f0" stroke="#94a3b8" strokeWidth={1.5} />;
+                      return <circle key={cx} cx={cx} cy={cy} r={4} fill="#7c3aed" />;
+                    }}
+                    activeDot={{ r: 7, fill: "#5b21b6" }}
                   />
-                </LineChart>
+                </AreaChart>
               </ResponsiveContainer>
+            )}
+
+            <div className="flex items-center gap-4 mt-3 text-[10px] text-gray-400">
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded-full bg-violet-500 inline-block" />
+                Sudah hadir
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded-full bg-violet-500 ring-2 ring-white inline-block" />
+                Bulan ini
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded-full bg-slate-200 inline-block" />
+                Mendatang (proyeksi)
+              </span>
             </div>
-          )}
+          </div>
+
+          {/* Distribusi Kategori */}
+          <div className="bg-white/80 backdrop-blur rounded-2xl shadow-lg border border-violet-100 p-5 hover:shadow-xl transition">
+            <h2 className="text-lg font-semibold text-violet-600 mb-1">🧩 Distribusi Kategori</h2>
+            <p className="text-xs text-gray-400 mb-4">
+              Total peserta di {LABEL_POS[posKader] || posKader}
+            </p>
+
+            {kategoriData.length === 0 ? (
+              <div className="h-40 flex items-center justify-center text-gray-300 text-sm">
+                Belum ada data
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {kategoriData.map((k) => {
+                  const c = KATEGORI_COLOR[k.key] ?? { bg: "bg-slate-50", text: "text-slate-600", dot: "#94a3b8" };
+                  const pct = stats.totalSemua > 0
+                    ? Math.round((k.value / stats.totalSemua) * 100)
+                    : 0;
+                  return (
+                    <div key={k.key}>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className={`text-xs font-semibold capitalize ${c.text}`}>{k.label}</span>
+                        <span className="text-xs text-gray-400">{k.value} ({pct}%)</span>
+                      </div>
+                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all duration-700"
+                          style={{ width: `${pct}%`, backgroundColor: c.dot }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* TABEL PESERTA HARI INI */}
-        <div className="bg-white/80 backdrop-blur p-6 rounded-2xl shadow-lg border border-indigo-100">
-          <h2 className="text-lg font-semibold mb-4 text-indigo-600">
-            🗓 Peserta Terdaftar Hari Ini
-          </h2>
-          <PesertaHariIni tanggal={getTanggalHariIni()} pos={posKader} />
+        {/* ── Tabel Peserta Hari Ini ── */}
+        <div className="bg-white/80 backdrop-blur rounded-2xl shadow-lg border border-indigo-100 overflow-hidden hover:shadow-xl transition">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+            <div>
+              <h2 className="text-lg font-semibold text-indigo-600">🗓 Peserta Terdaftar Hari Ini</h2>
+              <p className="text-xs text-gray-400">{tanggalHariIni}</p>
+            </div>
+            <span className="bg-indigo-50 text-indigo-700 text-xs font-bold px-3 py-1 rounded-full">
+              {stats.totalHariIni} peserta
+            </span>
+          </div>
+
+          <PesertaHariIni tanggal={tanggalHariIni} pos={posKader} />
         </div>
 
       </main>
+
+      {/* ══ Modal Perlu Perhatian ══ */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
+          onClick={() => setShowModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+              <div>
+                <h3 className="font-bold text-pink-600 text-lg">⚠️ Peserta Perlu Perhatian</h3>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {bulanAktif
+                    ? `Bulan ${NAMA_BULAN[parseInt(bulanAktif.split("-")[1]) - 1]} ${bulanAktif.split("-")[0]}`
+                    : "Semua periode"
+                  } · {modalList.length} peserta
+                </p>
+              </div>
+              <button onClick={() => setShowModal(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 text-xl transition">
+                ✕
+              </button>
+            </div>
+
+            <div className="overflow-y-auto p-5">
+              {modalList.length === 0 ? (
+                <p className="text-center text-gray-400 py-12">
+                  Tidak ada peserta berisiko pada periode ini
+                </p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-pink-50 text-left">
+                      <th className="py-2 px-2 text-xs text-slate-500 font-semibold uppercase">Nama</th>
+                      <th className="px-3 text-xs text-slate-500 font-semibold uppercase">Kategori</th>
+                      <th className="px-3 text-xs text-slate-500 font-semibold uppercase">Masalah</th>
+                      <th className="px-3 text-xs text-slate-500 font-semibold uppercase">Tanggal</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {modalList.map((item, i) => {
+                      const c = KATEGORI_COLOR[item.kategori] ?? { bg: "bg-slate-50", text: "text-slate-600" };
+                      return (
+                        <tr key={i} className="hover:bg-pink-50/30 transition">
+                          <td className="py-2.5 px-2 font-semibold text-slate-700">{item.nama}</td>
+                          <td className="px-3">
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${c.bg} ${c.text}`}>
+                              {(item.kategori ?? "-").replace(/_/g, " ")}
+                            </span>
+                          </td>
+                          <td className="px-3 text-pink-700 font-medium text-xs">{labelStatus(item)}</td>
+                          <td className="px-3 text-xs text-slate-400">{item.tanggal || "-"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div className="px-5 py-3 border-t border-slate-100 flex justify-between items-center">
+              <Link href="/laporan" className="text-xs text-violet-600 font-semibold hover:underline">
+                Lihat detail lengkap di Laporan →
+              </Link>
+              <button onClick={() => setShowModal(false)}
+                className="bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-xs font-semibold px-4 py-2 rounded-xl hover:opacity-90 transition">
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-// ── Sub-komponen tabel peserta hari ini (filter by pos) ──
+// ── Sub-komponen tabel peserta hari ini ──
 function PesertaHariIni({ tanggal, pos }: { tanggal: string; pos: string }) {
   const [list, setList] = useState<any[]>([]);
 
   useEffect(() => {
     const peserta: any[] = JSON.parse(localStorage.getItem("peserta") || "[]");
-    setList(
-      peserta.filter((p) => p.tanggal === tanggal && p.pos === pos)
-    );
+    setList(peserta.filter((p) => p.tanggal === tanggal && p.pos === pos));
   }, [tanggal, pos]);
 
   if (list.length === 0)
     return (
-      <p className="text-gray-400 text-sm text-center py-4">
+      <p className="text-gray-400 text-sm text-center py-10">
         Belum ada peserta terdaftar hari ini di pos ini.
       </p>
     );
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm text-center">
+      <table className="w-full text-sm">
         <thead>
-          <tr className="bg-indigo-50 text-slate-700">
-            <th className="py-2 px-2">No</th>
-            <th className="px-2">Nama</th>
-            <th className="px-2">Kategori</th>
-            <th className="px-2">Hadir</th>
+          <tr className="bg-indigo-50 text-xs text-slate-500 font-semibold uppercase tracking-wide">
+            <th className="px-5 py-3 text-left">No</th>
+            <th className="px-5 py-3 text-left">Nama</th>
+            <th className="px-5 py-3 text-left">Kategori</th>
+            <th className="px-5 py-3 text-center">Hadir</th>
           </tr>
         </thead>
-        <tbody>
-          {list.map((p, i) => (
-            <tr key={p.id ?? i} className="border-t">
-              <td className="py-1.5 px-2">{i + 1}</td>
-              <td className="px-2 font-semibold text-slate-700">{p.nama}</td>
-              <td className="px-2">
-                <span className={`px-2 py-0.5 rounded-full text-xs ${KATEGORI_WARNA[p.kategori] ?? "bg-gray-100 text-gray-600"}`}>
-                  {p.kategori?.replace(/_/g, " ") || "-"}
-                </span>
-              </td>
-              <td className="px-2">
-                {p.hadir
-                  ? <span className="text-green-600 font-semibold">✅ Hadir</span>
-                  : <span className="text-gray-400">— Belum</span>}
-              </td>
-            </tr>
-          ))}
+        <tbody className="divide-y divide-slate-50">
+          {list.map((p, i) => {
+            const c = KATEGORI_COLOR[p.kategori] ?? { bg: "bg-slate-50", text: "text-slate-600" };
+            return (
+              <tr key={p.id ?? i} className="hover:bg-violet-50/40 transition">
+                <td className="px-5 py-3 text-xs text-slate-400 font-mono">{i + 1}</td>
+                <td className="px-5 py-3 font-semibold text-slate-700">{p.nama}</td>
+                <td className="px-5 py-3">
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${c.bg} ${c.text}`}>
+                    {p.kategori?.replace(/_/g, " ") || "-"}
+                  </span>
+                </td>
+                <td className="px-5 py-3 text-center">
+                  {p.hadir
+                    ? <span className="bg-emerald-50 text-emerald-700 text-xs font-semibold px-2 py-0.5 rounded-full">✓ Hadir</span>
+                    : <span className="bg-slate-50 text-slate-400 text-xs font-semibold px-2 py-0.5 rounded-full">— Belum</span>}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
