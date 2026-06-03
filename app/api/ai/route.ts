@@ -1,66 +1,53 @@
 import { NextResponse } from "next/server";
 
+const KATEGORI_VALID = [
+  "balita", "ibu_hamil", "ibu_nifas", "ibu_nifas_menyusui", "lansia", "remaja",
+];
+
 export async function POST(req: Request) {
-  
   const { nama, kategori, detail } = await req.json();
+
+  // Validasi input
+  if (!nama || !kategori || !detail || !KATEGORI_VALID.includes(kategori)) {
+    return NextResponse.json({
+      jawaban: "Maaf, saya hanya membantu analisis pemeriksaan posyandu. Silakan masukkan data pemeriksaan yang valid.",
+    });
+  }
 
   try {
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.GROQ_API_KEY}`, // ✅ DI SINI
+        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
       },
       body: JSON.stringify({
         model: "llama-3.1-8b-instant",
         messages: [
           {
             role: "system",
-            content: `
-Anda adalah AI asisten kesehatan Posyandu ILP.
+            content: `Anda adalah asisten kesehatan Posyandu ILP Desa Sumberurip.
 
-Tugas utama:
-- Menganalisis hasil pemeriksaan pasien secara menyeluruh
-- Memberikan kesimpulan medis singkat dan informatif
-- Menentukan status kesehatan pasien berdasarkan hasil pemeriksaan
-- Memberikan saran edukasi kesehatan
-- Membantu mendeteksi faktor risiko penyakit menular maupun tidak menular
+BATASAN: Hanya jawab topik seputar pemeriksaan posyandu (balita, ibu hamil, ibu nifas, lansia, remaja). Jika di luar topik, balas: "Maaf, saya hanya membantu analisis pemeriksaan posyandu."
 
-Cakupan analisis meliputi:
-- Status gizi dan pertumbuhan
-- Tekanan darah, gula darah, dan risiko penyakit metabolik
-- Gejala penyakit infeksi seperti TBC, ISPA, diare, demam, dan penyakit menular lainnya
-- Kesehatan ibu hamil, balita, remaja, dewasa, dan lansia
-- Risiko stunting, anemia, obesitas, hipertensi, diabetes, dan gangguan kesehatan umum lainnya
-- Evaluasi pola hidup, kebersihan, pola makan, aktivitas fisik, dan kepatuhan pengobatan
+CARA MENJAWAB:
+- Langsung ke inti, tanpa basa-basi pembuka
+- Bahasa sederhana seperti bidan berbicara ke kader
+- Maksimal 4 kalimat per poin
+- Tidak pakai nomor atau bullet point
+- Istilah medis wajib dijelaskan singkat
 
-Ketentuan jawaban:
-- Gunakan bahasa Indonesia yang formal, singkat, jelas, dan mudah dipahami bidan maupun kader kesehatan
-- Fokus pada interpretasi data pemeriksaan dan edukasi kesehatan praktis
-- Hindari diagnosis pasti tanpa pemeriksaan dokter
-- Jika ditemukan tanda bahaya atau risiko serius, sarankan rujukan ke fasilitas kesehatan
-- Berikan jawaban yang objektif, profesional, dan tidak berlebihan
+FORMAT (paragraf mengalir, bukan daftar):
+1. Kondisi saat ini — apa yang ditemukan
+2. Yang perlu diperhatikan — jika ada masalah, sebut langsung
+3. Saran praktis — 1-2 hal konkret yang bisa dilakukan hari ini
+4. Rujuk — hanya jika benar-benar perlu, sebutkan alasannya
 
-Format jawaban:
-1. Kesimpulan Pemeriksaan
-2. Status Kesehatan
-3. Faktor Risiko / Temuan Penting
-4. Saran dan Edukasi Kesehatan
-5. Tindak Lanjut atau Rujukan (jika diperlukan)
-`,
+Maksimal 100 kata. Mulai langsung dengan nama pasien.`,
           },
           {
             role: "user",
-            content: `
-Nama: ${nama}
-Kategori: ${kategori}
-
-Data:
-${detail}
-
-Buat kesimpulan singkat, status (normal/risiko), dan saran.
-            `,
-            // tambahkan detail untuk content secara lebih spesifik berdasarkan kategori penyakit
+            content: `Pasien: ${nama}\nKategori: ${kategori}\nData pemeriksaan:\n${detail}`,
           },
         ],
       }),
@@ -68,19 +55,17 @@ Buat kesimpulan singkat, status (normal/risiko), dan saran.
 
     const data = await response.json();
 
-console.log("STATUS:", response.status);
-console.log("DATA GROQ:", data);
+    console.log("STATUS:", response.status);
+    console.log("DATA GROQ:", data);
 
-return NextResponse.json({
-  jawaban:
-    data.choices?.[0]?.message?.content ||
-    data.error?.message ||
-    "Tidak ada respon",
-});
-
-  } catch (error) {
     return NextResponse.json({
-      jawaban: "Terjadi kesalahan",
+      jawaban:
+        data.choices?.[0]?.message?.content ||
+        data.error?.message ||
+        "Tidak ada respon",
     });
+  } catch (error) {
+    console.error("GROQ ERROR:", error);
+    return NextResponse.json({ jawaban: "Terjadi kesalahan saat menghubungi AI." });
   }
 }
