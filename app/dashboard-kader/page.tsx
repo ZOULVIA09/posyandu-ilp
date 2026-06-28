@@ -164,7 +164,7 @@ export default function DashboardKader() {
       const peserta  = await resPeserta.json();
       const periksa  = await resPeriksa.json();
       console.log("Sample peserta:", peserta.slice(0, 3));
-    console.log("tanggalHariIni:", tanggalHariI
+      console.log("tanggalHariIni:", tanggalHariIni);
       if (Array.isArray(peserta)) setAllPeserta(peserta);
       if (Array.isArray(periksa)) setAllPeriksa(periksa);
     } finally {
