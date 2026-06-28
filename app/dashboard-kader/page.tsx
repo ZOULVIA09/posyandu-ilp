@@ -584,7 +584,11 @@ export default function DashboardKader() {
                       const c = KATEGORI_COLOR[item.kategori] ?? { bg: "bg-slate-50", text: "text-slate-600" };
                       return (
                         <tr key={i} className="hover:bg-pink-50/30 transition">
-                          <td className="py-2.5 px-2 font-semibold text-slate-700">{item.nama}</td>
+                          <td className="py-2.5 px-2 font-semibold text-slate-700">
+                            {/* ✅ Fix: data pemeriksaan tidak punya field nama langsung,
+                                nama peserta ada di item.peserta.nama (nested) */}
+                            {item.peserta?.nama || item.nama || "-"}
+                          </td>
                           <td className="px-3">
                             <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${c.bg} ${c.text}`}>
                               {(item.kategori ?? "-").replace(/_/g, " ")}
