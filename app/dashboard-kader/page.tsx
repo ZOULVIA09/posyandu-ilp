@@ -141,10 +141,10 @@ export default function DashboardKader() {
     }), []);
 
   // Tanggal hari ini dalam format lokal (untuk filter kehadiran hari ini)
-  const tanggalHariIni = useMemo(() =>
-    new Date().toLocaleDateString("id-ID", {
-      day: "numeric", month: "long", year: "numeric",
-    }), []);
+  const tanggalHariIni = useMemo(() => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+}, []);
 
   useEffect(() => {
     const role = localStorage.getItem("role");
@@ -163,6 +163,8 @@ export default function DashboardKader() {
       ]);
       const peserta  = await resPeserta.json();
       const periksa  = await resPeriksa.json();
+      console.log("Sample peserta:", peserta.slice(0, 3));
+    console.log("tanggalHariIni:", tanggalHariI
       if (Array.isArray(peserta)) setAllPeserta(peserta);
       if (Array.isArray(periksa)) setAllPeriksa(periksa);
     } finally {
@@ -174,7 +176,7 @@ export default function DashboardKader() {
   const stats = useMemo(() => {
     const pesertaHariIni = allPeserta.filter((p) => p.tanggal === tanggalHariIni);
     const totalHariIni   = pesertaHariIni.length;
-    const hadirHariIni   = pesertaHariIni.filter((p) => p.hadir === true).length;
+    const hadirHariIni   = pesertaHariIni.filter((p) => p.hadir === true || p.hadir === "true".length;
 
     const bulanIniList   = allPeserta.filter((p) => getBulanKey(p.tanggal) === hariIni);
     const perhatianAll   = allPeriksa.filter(perluPerhatian);
