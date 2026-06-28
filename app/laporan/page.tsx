@@ -207,7 +207,23 @@ if (Array.isArray(pemData)) {
     setIsAutoFilled(false); setShowForm(false);
   };
 
-  const handleHapus = (id: number) => setData(data.filter((item) => item.id !== id));
+const handleHapus = async (id: number) => {
+  const konfirmasi = confirm("Yakin ingin menghapus data ini?");
+  if (!konfirmasi) return;
+
+  try {
+    const res = await fetch(`/api/pelayanan?id=${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      alert("Gagal menghapus data");
+      return;
+    }
+    // Hapus dari state setelah berhasil di DB
+    setData(data.filter((item) => item.id !== id));
+  } catch (err) {
+    console.error(err);
+    alert("Terjadi kesalahan saat menghapus");
+  }
+};
 
   const handleExportPDF = () => {
     const doc = new jsPDF();
