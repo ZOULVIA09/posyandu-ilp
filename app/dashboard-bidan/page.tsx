@@ -20,11 +20,16 @@ const NAMA_BULAN = [
 
 function getBulanKey(tanggal: string) {
   if (!tanggal) return null;
-  if (tanggal.includes("-") && tanggal.length >= 7) {
+
+  // Format ISO: "2026-06-28"
+  if (tanggal.match(/^\d{4}-\d{2}/)) {
     const [y, m] = tanggal.split("-");
     return `${y}-${m.padStart(2, "0")}`;
   }
-  const parts = tanggal.split(" ");
+
+  // Hapus nama hari jika ada: "Senin, 28 Juni 2026" → "28 Juni 2026"
+  const cleaned = tanggal.replace(/^[^,]+,\s*/, "").trim();
+  const parts = cleaned.split(" ");
   if (parts.length === 3) {
     const bulanIdx = NAMA_BULAN.findIndex(
       (b) => b.toLowerCase() === parts[1].toLowerCase()
@@ -32,6 +37,7 @@ function getBulanKey(tanggal: string) {
     if (bulanIdx !== -1)
       return `${parts[2]}-${String(bulanIdx + 1).padStart(2, "0")}`;
   }
+
   return null;
 }
 
@@ -167,7 +173,7 @@ export default function DashboardPage() {
   [stats.perKategori]);
 
   const navItems = [
-    { href: "/dashboard-bidan",   icon: "📊", label: "Dashboard" },
+    { href: "/dashboard-bidan", icon: "📊", label: "Dashboard" },
     { href: "/pendaftaran", icon: "📝", label: "Pendaftaran" },
     { href: "/pemeriksaan", icon: "🩺", label: "Pemeriksaan" },
     { href: "/pelayanan",   icon: "💊", label: "Pelayanan" },
@@ -192,7 +198,7 @@ export default function DashboardPage() {
       <aside className="w-64 bg-gradient-to-b from-violet-600 via-purple-600 to-indigo-600 text-white p-5 flex flex-col justify-between shadow-xl">
         <div>
           <div className="mb-8">
-            <h2 className="text-2xl font-bold">Posyandu ILP Desa Sumberurip</h2>
+            <h2 className="text-2xl font-bold">🌸 Posyandu ILP Desa Sumberurip</h2>
             <p className="text-sm text-white/70">Bidan</p>
           </div>
           <nav className="space-y-2">
@@ -213,7 +219,7 @@ export default function DashboardPage() {
           onClick={() => { localStorage.removeItem("role"); window.location.href = "/login"; }}
           className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-red-500 to-pink-500 p-2 rounded-lg hover:scale-105 transition shadow"
         >
-          Logout
+          🚪 Logout
         </button>
       </aside>
 
