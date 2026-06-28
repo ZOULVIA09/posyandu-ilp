@@ -32,15 +32,15 @@ const KATEGORI_COLOR: Record<string, { bg: string; text: string; dot: string }> 
   remaja:             { bg: "bg-violet-50", text: "text-violet-700", dot: "#8b5cf6" },
 };
 
+// ✅ Fix: getBulanKey bisa baca format "Senin, 28 Juni 2026"
 function getBulanKey(tanggal: string) {
   if (!tanggal) return null;
-  // format YYYY-MM-DD
-  if (tanggal.includes("-") && tanggal.length >= 7) {
+  if (tanggal.match(/^\d{4}-\d{2}/)) {
     const [y, m] = tanggal.split("-");
     return `${y}-${m.padStart(2, "0")}`;
   }
-  // format "12 Juni 2025"
-  const parts = tanggal.split(" ");
+  const cleaned = tanggal.replace(/^[^,]+,\s*/, "").trim();
+  const parts = cleaned.split(" ");
   if (parts.length === 3) {
     const bulanIdx = NAMA_BULAN.findIndex(
       (b) => b.toLowerCase() === parts[1].toLowerCase()
@@ -51,9 +51,39 @@ function getBulanKey(tanggal: string) {
   return null;
 }
 
+// ✅ Fix: helper cek tanggal hari ini, support semua format
+function isTanggalHariIni(tanggal: string): boolean {
+  const tanggalIso = new Date().toISOString().slice(0, 10);
+  if (!tanggal) return false;
+  if (tanggal.startsWith(tanggalIso)) return true;
+  const cleaned = tanggal.replace(/^[^,]+,\s*/, "").trim();
+  const parts = cleaned.split(" ");
+  if (parts.length === 3) {
+    const bulanIdx = NAMA_BULAN.findIndex(
+      (b) => b.toLowerCase() === parts[1].toLowerCase()
+    );
+    if (bulanIdx !== -1) {
+      const iso = `${parts[2]}-${String(bulanIdx + 1).padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+      return iso === tanggalIso;
+    }
+  }
+  return false;
+}
+
 function formatBulanLabel(key: string) {
   const [y, m] = key.split("-");
   return `${NAMA_BULAN[parseInt(m) - 1]?.slice(0, 3)} '${y.slice(2)}`;
+}
+
+// ✅ Fix: helper untuk cek apakah suatu record (peserta/pemeriksaan) milik pos tertentu.
+// Field yang benar (dikonfirmasi dari data asli) adalah `posId` (angka) di kedua tabel.
+// localStorage menyimpan posId sebagai string, sedangkan di data posId berupa number,
+// jadi dibandingkan via String(...) supaya "6" === 6 tetap cocok.
+function milikPos(item: any, posId: string): boolean {
+  if (!item) return false;
+  const nilaiPos = item.posId ?? item.pos_id ?? item.pos ?? null;
+  if (nilaiPos === null) return false;
+  return String(nilaiPos) === String(posId);
 }
 
 function perluPerhatian(item: any): boolean {
@@ -123,12 +153,12 @@ export default function DashboardKader() {
   const router   = useRouter();
   const pathname = usePathname();
 
-  const [posKader, setPosKader]       = useState("");
-  const [allPeserta, setAllPeserta]   = useState<any[]>([]);
-  const [allPeriksa, setAllPeriksa]   = useState<any[]>([]);
-  const [loading, setLoading]         = useState(true);
-  const [showModal, setShowModal]     = useState(false);
-  const [bulanAktif, setBulanAktif]   = useState("");
+  const [posKader, setPosKader]     = useState("");
+  const [allPeserta, setAllPeserta] = useState<any[]>([]);
+  const [allPeriksa, setAllPeriksa] = useState<any[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [showModal, setShowModal]   = useState(false);
+  const [bulanAktif, setBulanAktif] = useState("");
 
   const hariIni = useMemo(() => {
     const now = new Date();
@@ -140,7 +170,6 @@ export default function DashboardKader() {
       weekday: "long", day: "numeric", month: "long", year: "numeric",
     }), []);
 
-  // Tanggal hari ini dalam format lokal (untuk filter kehadiran hari ini)
   const tanggalHariIni = useMemo(() =>
     new Date().toLocaleDateString("id-ID", {
       day: "numeric", month: "long", year: "numeric",
@@ -161,10 +190,18 @@ export default function DashboardKader() {
         fetch(`/api/peserta?posId=${posId}`),
         fetch(`/api/pemeriksaan?posId=${posId}`),
       ]);
-      const peserta  = await resPeserta.json();
-      const periksa  = await resPeriksa.json();
-      if (Array.isArray(peserta)) setAllPeserta(peserta);
-      if (Array.isArray(periksa)) setAllPeriksa(periksa);
+      const peserta = await resPeserta.json();
+      const periksa = await resPeriksa.json();
+
+      // ✅ Fix: filter ulang di client berdasarkan posId, sebagai pengaman tambahan
+      // supaya data antar pos tidak pernah tercampur di dashboard ini, walau
+      // endpoint sudah dipanggil dengan ?posId=...
+      if (Array.isArray(peserta)) {
+        setAllPeserta(peserta.filter((p) => milikPos(p, posId)));
+      }
+      if (Array.isArray(periksa)) {
+        setAllPeriksa(periksa.filter((p) => milikPos(p, posId)));
+      }
     } finally {
       setLoading(false);
     }
@@ -172,21 +209,17 @@ export default function DashboardKader() {
 
   // ── Statistik ─────────────────────────────────────────────
   const stats = useMemo(() => {
-    const pesertaHariIni = allPeserta.filter((p) => p.tanggal === tanggalHariIni);
+    // ✅ Fix: tabel peserta tidak punya field `tanggal`, yang ada `createdAt` (ISO).
+    // Format ISO ini tetap kompatibel dengan isTanggalHariIni()/getBulanKey().
+    const pesertaHariIni = allPeserta.filter((p) => isTanggalHariIni(p.createdAt));
     const totalHariIni   = pesertaHariIni.length;
     const hadirHariIni   = pesertaHariIni.filter((p) => p.hadir === true).length;
 
-    const bulanIniList   = allPeserta.filter((p) => getBulanKey(p.tanggal) === hariIni);
+    const bulanIniList   = allPeserta.filter((p) => getBulanKey(p.createdAt) === hariIni);
     const perhatianAll   = allPeriksa.filter(perluPerhatian);
     const perhatianBulan = allPeriksa.filter(
       (p) => perluPerhatian(p) && getBulanKey(p.tanggal) === hariIni
     );
-
-    const perKategori: Record<string, number> = {};
-    allPeserta.forEach((p) => {
-      const k = p.kategori ?? "lain";
-      perKategori[k] = (perKategori[k] ?? 0) + 1;
-    });
 
     return {
       totalHariIni,
@@ -194,12 +227,11 @@ export default function DashboardKader() {
       bulanIni: bulanIniList.length,
       perhatianAll,
       perhatianBulan,
-      perKategori,
       totalSemua: allPeserta.length,
     };
-  }, [allPeserta, allPeriksa, hariIni, tanggalHariIni]);
+  }, [allPeserta, allPeriksa, hariIni]);
 
-  // ── Grafik kehadiran per bulan (6 lalu + sekarang + 5 mendatang) ──
+  // ── Grafik kehadiran per bulan ──
   const grafikData = useMemo(() => {
     const now = new Date();
     return Array.from({ length: 12 }, (_, i) => {
@@ -210,7 +242,7 @@ export default function DashboardKader() {
         key,
         bulan:    formatBulanLabel(key),
         jumlah:   allPeserta.filter(
-          (p) => p.hadir === true && getBulanKey(p.tanggal) === key
+          (p) => p.hadir === true && getBulanKey(p.createdAt) === key
         ).length,
         isNow:    key === hariIni,
         isFuture: delta > 0,
@@ -219,11 +251,22 @@ export default function DashboardKader() {
   }, [allPeserta, hariIni]);
 
   // ── Distribusi kategori ──
-  const kategoriData = useMemo(() =>
-    Object.entries(stats.perKategori)
+  // ✅ Fix: sekarang diambil dari data PEMERIKSAAN (allPeriksa), bukan dari data
+  // pendaftaran (allPeserta). Ini supaya angkanya mencerminkan hasil periksa
+  // per kategori di pos ini, dan karena allPeriksa sudah difilter per-pos di
+  // loadData(), distribusinya pasti hanya untuk pos kader yang login.
+  const kategoriData = useMemo(() => {
+    const perKategoriPeriksa: Record<string, number> = {};
+    allPeriksa.forEach((p) => {
+      const k = p.kategori ?? "lain";
+      perKategoriPeriksa[k] = (perKategoriPeriksa[k] ?? 0) + 1;
+    });
+    return Object.entries(perKategoriPeriksa)
       .map(([k, v]) => ({ label: k.replace(/_/g, " "), value: v, key: k }))
-      .sort((a, b) => b.value - a.value),
-  [stats.perKategori]);
+      .sort((a, b) => b.value - a.value);
+  }, [allPeriksa]);
+
+  const totalPeriksaSemua = allPeriksa.length;
 
   // ── Modal list ──
   const modalList = useMemo(() => {
@@ -446,7 +489,7 @@ export default function DashboardKader() {
           <div className="bg-white/80 backdrop-blur rounded-2xl shadow-lg border border-violet-100 p-5 hover:shadow-xl transition">
             <h2 className="text-lg font-semibold text-violet-600 mb-1">🧩 Distribusi Kategori</h2>
             <p className="text-xs text-gray-400 mb-4">
-              Total peserta di {LABEL_POS[posKader] || posKader}
+              Berdasarkan data pemeriksaan di {LABEL_POS[posKader] || posKader}
             </p>
 
             {kategoriData.length === 0 ? (
@@ -457,8 +500,8 @@ export default function DashboardKader() {
               <div className="space-y-3">
                 {kategoriData.map((k) => {
                   const c = KATEGORI_COLOR[k.key] ?? { bg: "bg-slate-50", text: "text-slate-600", dot: "#94a3b8" };
-                  const pct = stats.totalSemua > 0
-                    ? Math.round((k.value / stats.totalSemua) * 100)
+                  const pct = totalPeriksaSemua > 0
+                    ? Math.round((k.value / totalPeriksaSemua) * 100)
                     : 0;
                   return (
                     <div key={k.key}>
@@ -490,7 +533,11 @@ export default function DashboardKader() {
             </span>
           </div>
 
-          <PesertaHariIni tanggal={tanggalHariIni} pos={posKader} />
+          {/* ✅ Fix: allPeserta sudah difilter per-pos di loadData(); pakai createdAt karena
+              tabel peserta tidak punya field tanggal harian */}
+          <PesertaHariIni
+            list={allPeserta.filter((p) => isTanggalHariIni(p.createdAt))}
+          />
         </div>
 
       </main>
@@ -570,14 +617,7 @@ export default function DashboardKader() {
 }
 
 // ── Sub-komponen tabel peserta hari ini ──
-function PesertaHariIni({ tanggal, pos }: { tanggal: string; pos: string }) {
-  const [list, setList] = useState<any[]>([]);
-
-  useEffect(() => {
-    const peserta: any[] = JSON.parse(localStorage.getItem("peserta") || "[]");
-    setList(peserta.filter((p) => p.tanggal === tanggal && p.pos === pos));
-  }, [tanggal, pos]);
-
+function PesertaHariIni({ list }: { list: any[] }) {
   if (list.length === 0)
     return (
       <p className="text-gray-400 text-sm text-center py-10">
